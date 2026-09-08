@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'joystick_input.dart';
+import 'remap/remap_home.dart';
 import 'settings.dart';
 import 'utils/key_mapping.dart';
 import 'utils/user_key_bindings.dart';
@@ -71,6 +72,13 @@ class _JoystickHomeState extends State<JoystickHome> {
       appBar: AppBar(
         title: const Text('搖桿測試器 v3 (PS)'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_accessibility),
+            tooltip: '搖桿映射器',
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const RemapHomePage()));
+            },
+          ),
           IconButton(icon: const Icon(Icons.settings), onPressed: _openSettings),
         ],
       ),

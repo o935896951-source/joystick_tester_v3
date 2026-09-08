@@ -3,12 +3,15 @@ import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
     private val STREAM = "com.example.joysticktester/gamepad_events"
+    private val REMAP_CONTROL = "com.example.joysticktester/remap_control"
     private var eventSink: EventChannel.EventSink? = null
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -18,6 +21,25 @@ class MainActivity: FlutterActivity() {
                 override fun onCancel(arguments: Any?) { eventSink = null }
             }
         )
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, REMAP_CONTROL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getRemapStatus" -> {
+                    result.success(mapOf(
+                        "serviceEnabled" to RemapAccessibilityService.isServiceEnabled(this),
+                        "filterKeyEventsAvailable" to RemapAccessibilityService.filterKeyEventsAvailable,
+                    ))
+                }
+                "openAccessibilitySettings" -> {
+                    try {
+                        startActivity(android.content.Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
         if(event!=null && isGamepadEvent(event.deviceId)){
