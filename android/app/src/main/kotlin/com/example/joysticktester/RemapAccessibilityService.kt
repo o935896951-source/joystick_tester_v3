@@ -7,8 +7,6 @@ import android.content.Context
 import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
-import android.view.InputDevice
-import android.view.MotionEvent
 import android.view.accessibility.AccessibilityEvent
 
 /**
@@ -28,42 +26,6 @@ class RemapAccessibilityService : AccessibilityService() {
                 "flags=${Integer.toHexString(flags)}",
         )
         filterKeyEventsAvailable = canFilterKeys
-        logInputDevices()
-    }
-
-    /**
-     * 暫時診斷：列出全部輸入裝置及其來源，並標示是否具備 D-pad（HAT）軸。
-     * 目的：判定 SR-001 的 D-pad 是走 HAT 軸（MotionEvent）還是按鍵（KeyEvent）。
-     */
-    private fun logInputDevices() {
-        try {
-            for (device in InputDevice.getDevices()) {
-                val sources = device.sources
-                val isGamepad = (sources and InputDevice.SOURCE_GAMEPAD) != 0
-                val isJoystick = (sources and InputDevice.SOURCE_JOYSTICK) != 0
-                Log.i(
-                    TAG,
-                    "device name=${device.name} id=${device.id} " +
-                        "sources=${Integer.toHexString(sources)} " +
-                        "gamepad=$isGamepad joystick=$isJoystick",
-                )
-                for (axis in AXES_TO_PROBE) {
-                    val range = try {
-                        device.getMotionRange(axis)
-                    } catch (_: Exception) {
-                        null
-                    } ?: continue
-                    Log.i(
-                        TAG,
-                        "  axis=${axisLabel(axis)} min=${range.getMin()} max=${range.getMax()} " +
-                            "flat=${range.getFlat()} " +
-                            "source=${Integer.toHexString(range.getSource())}",
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "logInputDevices failed: ${e.message}")
-        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -155,18 +117,6 @@ fun actionLabel(action: Int): String {
         KeyEvent.ACTION_MULTIPLE -> "MULTIPLE"
         else -> "UNKNOWN($action)"
     }
-}
-
-/** D-pad 通常以 HAT 軸（AXIS_HAT_X/HAT_Y）呈現，先用這兩個判定是否為軸式 D-pad。 */
-private val AXES_TO_PROBE = intArrayOf(
-    MotionEvent.AXIS_HAT_X,
-    MotionEvent.AXIS_HAT_Y,
-)
-
-private fun axisLabel(axis: Int): String = when (axis) {
-    MotionEvent.AXIS_HAT_X -> "HAT_X"
-    MotionEvent.AXIS_HAT_Y -> "HAT_Y"
-    else -> "axis($axis)"
 }
 
 private val AccessibleGamepadKeys = setOf(
