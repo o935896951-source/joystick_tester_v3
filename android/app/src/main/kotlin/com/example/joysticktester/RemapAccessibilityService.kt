@@ -58,13 +58,11 @@ class RemapAccessibilityService : AccessibilityService() {
                     devDesc,
             )
             if (isGamepadEvent(event)) {
-                val canonical = GamepadEventGate.ingestKeyEvent(event) ?: return false
                 val desc = "keyCode=${event.keyCode} " +
-                    "action=${canonical.toUpperCase()} " +
+                    "action=${actionLabel(event.action)} " +
                     "deviceId=${event.deviceId} " +
                     "repeatCount=${event.repeatCount}"
                 Log.i(TAG, "onKeyEvent $desc")
-                recordKeyEvent(desc)
             }
         }
         return false
