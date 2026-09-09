@@ -45,7 +45,19 @@ class MainActivity: FlutterActivity() {
         }
     }
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
-        if(event!=null && isGamepadEvent(event.deviceId)){
+        if(event!=null){
+            val gpDevice = isGamepadEvent(event.deviceId)
+            Log.i(
+                "GamepadEvtGate",
+                "RAW_KEY ENTRY action=${actionLabel(event.action)} " +
+                    "keyCode=${event.keyCode} " +
+                    "repeat=${event.repeatCount} " +
+                    "deviceId=${event.deviceId} " +
+                    "eventTime=${event.eventTime} " +
+                    "downTime=${event.downTime} " +
+                    "isGamepadDevice=$gpDevice",
+            )
+            if(gpDevice){
             val canonical = GamepadEventGate.ingestKeyEvent(event)
             if(canonical!=null){
                 val map = mapOf("type" to "button","keyCode" to event.keyCode,"action" to canonical,"repeatCount" to event.repeatCount)

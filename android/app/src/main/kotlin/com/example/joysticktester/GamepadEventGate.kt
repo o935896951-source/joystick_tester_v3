@@ -1,5 +1,6 @@
 package com.example.joysticktester
 
+import android.util.Log
 import android.view.KeyEvent
 
 /**
@@ -13,6 +14,7 @@ import android.view.KeyEvent
  * 兩者皆在 app 同一個 process，因此同一個物理事件只會被記錄一次。
  */
 object GamepadEventGate {
+    private const val TAG = "GamepadEvtGate"
     private val pressedKeyCodes = mutableSetOf<Int>()
 
     /**
@@ -24,11 +26,26 @@ object GamepadEventGate {
         return synchronized(this) {
             when (event.action) {
                 KeyEvent.ACTION_DOWN -> {
-                    if (event.repeatCount > 0) return@synchronized null
-                    if (pressedKeyCodes.add(event.keyCode)) "down" else null
+                    if (event.repeatCount > 0) {
+                        Log.i(TAG, "GATE DROP repeatDown keyCode=${event.keyCode} repeat=${event.repeatCount}")
+                        return@synchronized null
+                    }
+                    if (pressedKeyCodes.add(event.keyCode)) {
+                        Log.i(TAG, "GATE PASS down keyCode=${event.keyCode}")
+                        "down"
+                    } else {
+                        Log.i(TAG, "GATE DROP alreadyDown keyCode=${event.keyCode}")
+                        null
+                    }
                 }
                 KeyEvent.ACTION_UP -> {
-                    if (pressedKeyCodes.remove(event.keyCode)) "up" else null
+                    if (pressedKeyCodes.remove(event.keyCode)) {
+                        Log.i(TAG, "GATE PASS up keyCode=${event.keyCode}")
+                        "up"
+                    } else {
+                        Log.i(TAG, "GATE DROP noMatchingDown keyCode=${event.keyCode}")
+                        null
+                    }
                 }
                 else -> null
             }
