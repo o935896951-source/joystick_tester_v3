@@ -58,17 +58,18 @@ class MainActivity: FlutterActivity() {
                     "isGamepadDevice=$gpDevice",
             )
             if(gpDevice){
-            val canonical = GamepadEventGate.ingestKeyEvent(event)
-            if(canonical!=null){
-                val map = mapOf("type" to "button","keyCode" to event.keyCode,"action" to canonical,"repeatCount" to event.repeatCount)
-                try{ eventSink?.success(map) }catch(e:Exception){ Log.e("MainActivity","send error",e) }
-                if(isGamepadEvent(event)){
-                    val desc = "keyCode=${event.keyCode} " +
-                        "action=${canonical.uppercase()} " +
-                        "deviceId=${event.deviceId} " +
-                        "repeatCount=${event.repeatCount}"
-                    Log.i("RemapA11y","canonical $desc")
-                    RemapAccessibilityService.recordKeyEvent(desc)
+                val canonical = GamepadEventGate.ingestKeyEvent(event)
+                if(canonical!=null){
+                    val map = mapOf("type" to "button","keyCode" to event.keyCode,"action" to canonical,"repeatCount" to event.repeatCount)
+                    try{ eventSink?.success(map) }catch(e:Exception){ Log.e("MainActivity","send error",e) }
+                    if(isGamepadEvent(event)){
+                        val desc = "keyCode=${event.keyCode} " +
+                            "action=${canonical.uppercase()} " +
+                            "deviceId=${event.deviceId} " +
+                            "repeatCount=${event.repeatCount}"
+                        Log.i("RemapA11y","canonical $desc")
+                        RemapAccessibilityService.recordKeyEvent(desc)
+                    }
                 }
             }
         }
