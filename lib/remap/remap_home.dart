@@ -10,7 +10,7 @@ class RemapHomePage extends StatefulWidget {
 
 class _RemapHomePageState extends State<RemapHomePage> {
   RemapStatus? _status;
-  String? _lastKeyEvent;
+  List<String> _keyHistory = [];
   bool _loading = true;
 
   @override
@@ -22,11 +22,11 @@ class _RemapHomePageState extends State<RemapHomePage> {
   Future<void> _refresh() async {
     setState(() => _loading = true);
     final s = await RemapControl.getStatus();
-    final lastEvent = await RemapControl.getLastKeyEvent();
+    final history = await RemapControl.getKeyEventHistory();
     if (mounted) {
       setState(() {
         _status = s;
-        _lastKeyEvent = lastEvent;
+        _keyHistory = history;
         _loading = false;
       });
     }
@@ -59,10 +59,45 @@ class _RemapHomePageState extends State<RemapHomePage> {
             ),
             const SizedBox(height: 16),
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.sensors, size: 40),
-                title: const Text('最後收到的搖桿按鍵'),
-                subtitle: Text(_lastKeyEvent ?? '（尚未收到）'),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.sensors, size: 40),
+                      title: Text('搖桿按鍵事件歷史'),
+                      subtitle: Text('新→舊（最多 40 筆）'),
+                    ),
+                    const Divider(height: 1),
+                    if (_keyHistory.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text('（尚未收到）'),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: ListView(
+                          shrinkWrap: true,
+                          reverse: true,
+                          children: [
+                            for (final e in _keyHistory)
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: Text(
+                                  (e.contains('action=DOWN') ? '↓' : '↑'),
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                title: Text(e, style: const TextStyle(fontSize: 12)),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 12),

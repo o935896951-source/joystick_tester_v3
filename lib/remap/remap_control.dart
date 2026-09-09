@@ -34,11 +34,13 @@ class RemapControl {
     }
   }
 
-  static Future<String?> getLastKeyEvent() async {
+  static Future<List<String>> getKeyEventHistory() async {
     try {
-      return await _channel.invokeMethod<String>('getLastKeyEvent');
+      final dynamic v = await _channel.invokeMethod('getKeyEventHistory');
+      if (v is List) return v.map((e) => e.toString()).toList();
+      return const [];
     } catch (_) {
-      return null;
+      return const [];
     }
   }
 }

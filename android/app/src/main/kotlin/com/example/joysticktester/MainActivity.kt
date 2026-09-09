@@ -37,8 +37,8 @@ class MainActivity: FlutterActivity() {
                         result.success(false)
                     }
                 }
-                "getLastKeyEvent" -> {
-                    result.success(RemapAccessibilityService.lastWhitelistedEvent)
+                "getKeyEventHistory" -> {
+                    result.success(RemapAccessibilityService.getKeyEventHistory())
                 }
                 else -> result.notImplemented()
             }

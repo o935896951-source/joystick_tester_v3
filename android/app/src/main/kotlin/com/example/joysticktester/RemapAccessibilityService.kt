@@ -42,13 +42,14 @@ class RemapAccessibilityService : AccessibilityService() {
                 "deviceId=${event.deviceId} " +
                 "repeatCount=${event.repeatCount}"
             Log.i(TAG, "onKeyEvent $desc")
-            lastWhitelistedEvent = desc
+            recordKeyEvent(desc)
         }
         return false
     }
 
     companion object {
         private const val TAG = "RemapA11y"
+        private const val MAX_HISTORY = 40
 
         @Volatile
         var filterKeyEventsAvailable: Boolean = false
@@ -56,6 +57,25 @@ class RemapAccessibilityService : AccessibilityService() {
         /** 最近一筆符合白名單的 KeyEvent 描述（供診斷 UI 顯示，不影響行為）。 */
         @Volatile
         var lastWhitelistedEvent: String? = null
+
+        private val historyLock = Any()
+        private val keyEventHistory = ArrayDeque<String>()
+
+        /** 記錄一筆符合白名單的 KeyEvent 描述到最近事件歷史。 */
+        fun recordKeyEvent(desc: String) {
+            synchronized(historyLock) {
+                keyEventHistory.addLast(desc)
+                while (keyEventHistory.size > MAX_HISTORY) {
+                    keyEventHistory.removeFirst()
+                }
+            }
+            lastWhitelistedEvent = desc
+        }
+
+        /** 回傳最近的事件歷史（新→舊依序的過往序列）。 */
+        fun getKeyEventHistory(): List<String> = synchronized(historyLock) {
+            keyEventHistory.toList()
+        }
 
         /** 是否已啟用此無障礙服務（唯讀檢查，供權限流程 UI 使用）。 */
         fun isServiceEnabled(context: Context): Boolean {
