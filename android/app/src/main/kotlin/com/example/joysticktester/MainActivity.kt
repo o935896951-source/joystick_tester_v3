@@ -52,7 +52,7 @@ class MainActivity: FlutterActivity() {
                 try{ eventSink?.success(map) }catch(e:Exception){ Log.e("MainActivity","send error",e) }
                 if(isGamepadEvent(event)){
                     val desc = "keyCode=${event.keyCode} " +
-                        "action=${canonical.toUpperCase()} " +
+                        "action=${canonical.uppercase()} " +
                         "deviceId=${event.deviceId} " +
                         "repeatCount=${event.repeatCount}"
                     Log.i("RemapA11y","canonical $desc")
