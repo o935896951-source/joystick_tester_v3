@@ -33,4 +33,12 @@ class RemapControl {
       return false;
     }
   }
+
+  static Future<String?> getLastKeyEvent() async {
+    try {
+      return await _channel.invokeMethod<String>('getLastKeyEvent');
+    } catch (_) {
+      return null;
+    }
+  }
 }

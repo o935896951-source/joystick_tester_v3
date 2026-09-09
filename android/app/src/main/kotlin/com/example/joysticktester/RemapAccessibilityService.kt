@@ -37,7 +37,12 @@ class RemapAccessibilityService : AccessibilityService() {
             return false
         }
         if (isGamepadEvent(event)) {
-            Log.d(TAG, "gamepad key: code=${event.keyCode} action=${event.action} repeat=${event.repeatCount}")
+            val desc = "keyCode=${event.keyCode} " +
+                "action=${actionLabel(event.action)} " +
+                "deviceId=${event.deviceId} " +
+                "repeatCount=${event.repeatCount}"
+            Log.i(TAG, "onKeyEvent $desc")
+            lastWhitelistedEvent = desc
         }
         return false
     }
@@ -47,6 +52,10 @@ class RemapAccessibilityService : AccessibilityService() {
 
         @Volatile
         var filterKeyEventsAvailable: Boolean = false
+
+        /** 最近一筆符合白名單的 KeyEvent 描述（供診斷 UI 顯示，不影響行為）。 */
+        @Volatile
+        var lastWhitelistedEvent: String? = null
 
         /** 是否已啟用此無障礙服務（唯讀檢查，供權限流程 UI 使用）。 */
         fun isServiceEnabled(context: Context): Boolean {
@@ -64,6 +73,16 @@ class RemapAccessibilityService : AccessibilityService() {
 /** 判斷 KeyEvent 是否為遊戲搖桿按鍵（Stage 1 採用 keyCode 白名單）。 */
 fun isGamepadEvent(event: KeyEvent): Boolean {
     return event.keyCode in AccessibleGamepadKeys
+}
+
+/** 把 KeyEvent 的 action 轉成可讀字串，供診斷顯示。 */
+fun actionLabel(action: Int): String {
+    return when (action) {
+        KeyEvent.ACTION_DOWN -> "DOWN"
+        KeyEvent.ACTION_UP -> "UP"
+        KeyEvent.ACTION_MULTIPLE -> "MULTIPLE"
+        else -> "UNKNOWN($action)"
+    }
 }
 
 private val AccessibleGamepadKeys = setOf(

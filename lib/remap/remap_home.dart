@@ -10,6 +10,7 @@ class RemapHomePage extends StatefulWidget {
 
 class _RemapHomePageState extends State<RemapHomePage> {
   RemapStatus? _status;
+  String? _lastKeyEvent;
   bool _loading = true;
 
   @override
@@ -21,9 +22,11 @@ class _RemapHomePageState extends State<RemapHomePage> {
   Future<void> _refresh() async {
     setState(() => _loading = true);
     final s = await RemapControl.getStatus();
+    final lastEvent = await RemapControl.getLastKeyEvent();
     if (mounted) {
       setState(() {
         _status = s;
+        _lastKeyEvent = lastEvent;
         _loading = false;
       });
     }
@@ -55,6 +58,20 @@ class _RemapHomePageState extends State<RemapHomePage> {
               ),
             ),
             const SizedBox(height: 16),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.sensors, size: 40),
+                title: const Text('最後收到的搖桿按鍵'),
+                subtitle: Text(_lastKeyEvent ?? '（尚未收到）'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _loading ? null : _refresh,
+              icon: const Icon(Icons.refresh),
+              label: const Text('重新檢查狀態 / 診斷'),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _loading ? null : _openSettings,
               icon: const Icon(Icons.settings_accessibility),
@@ -76,12 +93,6 @@ class _RemapHomePageState extends State<RemapHomePage> {
                 '以便後續轉換為遊戲觸控。',
                 style: TextStyle(fontSize: 14),
               ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _loading ? null : _refresh,
-              icon: const Icon(Icons.refresh),
-              label: const Text('重新檢查狀態'),
             ),
           ],
         ),
