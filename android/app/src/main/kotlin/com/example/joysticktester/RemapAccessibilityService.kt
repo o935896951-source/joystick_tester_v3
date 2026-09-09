@@ -63,7 +63,7 @@ class RemapAccessibilityService : AccessibilityService() {
 
 /** 判斷 KeyEvent 是否來自遊戲搖桿來源（Stage 1 用 keyCode 白名單比較保守）。 */
 fun isGamepadEvent(event: KeyEvent): Boolean {
-    if (event.deviceId == KeyEvent.DEVICE_ID_DEFAULT) {
+    if (event.deviceId == KeyEvent.DEVICE_ID_UNKNOWN) {
         return false
     }
     val code = event.keyCode
