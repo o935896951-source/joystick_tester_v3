@@ -7,6 +7,7 @@ import android.content.Context
 import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
+import android.view.InputDevice
 import android.view.accessibility.AccessibilityEvent
 
 /**
@@ -37,26 +38,33 @@ class RemapAccessibilityService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
-        // 暫時診斷：入口全量 Log，不受白名單限制。
-        // 目的：確認 Android 是否真的把任何 KeyEvent 送進 onKeyEvent()。
-        val entryDesc = if (event == null) {
-            "null"
-        } else {
-            "keyCode=${event.keyCode} action=${actionLabel(event.action)} " +
-                "repeatCount=${event.repeatCount} deviceId=${event.deviceId} " +
-                "source=${Integer.toHexString(event.source)}"
-        }
-        Log.i(TAG, "onKeyEvent ENTRY $entryDesc")
-        if (event == null) {
-            return false
-        }
-        if (isGamepadEvent(event)) {
-            val desc = "keyCode=${event.keyCode} " +
-                "action=${actionLabel(event.action)} " +
-                "deviceId=${event.deviceId} " +
-                "repeatCount=${event.repeatCount}"
-            Log.i(TAG, "onKeyEvent $desc")
-            recordKeyEvent(desc)
+        if (event != null) {
+            val devDesc = event.device?.let { dev ->
+                val srcs = dev.sources
+                " deviceId=${event.deviceId} " +
+                    "deviceName=${dev.name} " +
+                    "deviceSources=${Integer.toHexString(srcs)} " +
+                    "isGamepadSource=${(srcs and InputDevice.SOURCE_GAMEPAD) != 0} " +
+                    "isJoystickSource=${(srcs and InputDevice.SOURCE_JOYSTICK) != 0}"
+            } ?: " noDevice"
+            // 暫時診斷：入口全量 Log，不受白名單限制。
+            // 目的：確認 Android 是否真的把任何 KeyEvent 送進 onKeyEvent()。
+            Log.i(
+                TAG,
+                "onKeyEvent ENTRY keyCode=${event.keyCode} " +
+                    "action=${actionLabel(event.action)} " +
+                    "repeatCount=${event.repeatCount} " +
+                    "source=${Integer.toHexString(event.source)}" +
+                    devDesc,
+            )
+            if (isGamepadEvent(event)) {
+                val desc = "keyCode=${event.keyCode} " +
+                    "action=${actionLabel(event.action)} " +
+                    "deviceId=${event.deviceId} " +
+                    "repeatCount=${event.repeatCount}"
+                Log.i(TAG, "onKeyEvent $desc")
+                recordKeyEvent(desc)
+            }
         }
         return false
     }
