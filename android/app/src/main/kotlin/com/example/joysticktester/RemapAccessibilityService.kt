@@ -6,7 +6,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
-import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 
@@ -62,13 +61,9 @@ class RemapAccessibilityService : AccessibilityService() {
     }
 }
 
-/** 判斷 KeyEvent 是否來自遊戲搖桿來源（Stage 1 用 keyCode 白名單比較保守）。 */
+/** 判斷 KeyEvent 是否為遊戲搖桿按鍵（Stage 1 採用 keyCode 白名單）。 */
 fun isGamepadEvent(event: KeyEvent): Boolean {
-    if (event.deviceId == InputDevice.DEVICE_ID_UNKNOWN) {
-        return false
-    }
-    val code = event.keyCode
-    return code in AccessibleGamepadKeys
+    return event.keyCode in AccessibleGamepadKeys
 }
 
 private val AccessibleGamepadKeys = setOf(
