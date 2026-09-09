@@ -58,8 +58,9 @@ class RemapAccessibilityService : AccessibilityService() {
                     devDesc,
             )
             if (isGamepadEvent(event)) {
+                val canonical = GamepadEventGate.ingestKeyEvent(event) ?: return false
                 val desc = "keyCode=${event.keyCode} " +
-                    "action=${actionLabel(event.action)} " +
+                    "action=${canonical.toUpperCase()} " +
                     "deviceId=${event.deviceId} " +
                     "repeatCount=${event.repeatCount}"
                 Log.i(TAG, "onKeyEvent $desc")
@@ -114,7 +115,7 @@ class RemapAccessibilityService : AccessibilityService() {
 
 /** 判斷 KeyEvent 是否為遊戲搖桿按鍵（Stage 1 採用 keyCode 白名單）。 */
 fun isGamepadEvent(event: KeyEvent): Boolean {
-    return event.keyCode in AccessibleGamepadKeys
+    return event.keyCode in AccessibleGamepadKeys || event.keyCode in RemapAliasKeyCodes
 }
 
 /** 把 KeyEvent 的 action 轉成可讀字串，供診斷顯示。 */
@@ -145,4 +146,12 @@ private val AccessibleGamepadKeys = setOf(
     KeyEvent.KEYCODE_BUTTON_START,   // 108
     KeyEvent.KEYCODE_BUTTON_SELECT,  // 109
     KeyEvent.KEYCODE_BUTTON_MODE,    // 110
+)
+
+/** SR-001 實際發送的非標準面板按鍵 keycode：A=190 B=189 X=191 Y=188。 */
+private val RemapAliasKeyCodes = setOf(
+    190, // A（SR-001）
+    189, // B（SR-001）
+    191, // X（SR-001）
+    188, // Y（SR-001）
 )

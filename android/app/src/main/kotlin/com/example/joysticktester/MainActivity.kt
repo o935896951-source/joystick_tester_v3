@@ -46,9 +46,19 @@ class MainActivity: FlutterActivity() {
     }
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
         if(event!=null && isGamepadEvent(event.deviceId)){
-            val action = when(event.action){ KeyEvent.ACTION_DOWN->"down"; KeyEvent.ACTION_UP->"up"; else->"unknown" }
-            val map = mapOf("type" to "button","keyCode" to event.keyCode,"action" to action,"repeatCount" to event.repeatCount)
-            try{ eventSink?.success(map) }catch(e:Exception){ Log.e("MainActivity","send error",e) }
+            val canonical = GamepadEventGate.ingestKeyEvent(event)
+            if(canonical!=null){
+                val map = mapOf("type" to "button","keyCode" to event.keyCode,"action" to canonical,"repeatCount" to event.repeatCount)
+                try{ eventSink?.success(map) }catch(e:Exception){ Log.e("MainActivity","send error",e) }
+                if(isGamepadEvent(event)){
+                    val desc = "keyCode=${event.keyCode} " +
+                        "action=${canonical.toUpperCase()} " +
+                        "deviceId=${event.deviceId} " +
+                        "repeatCount=${event.repeatCount}"
+                    Log.i("RemapA11y","canonical $desc")
+                    RemapAccessibilityService.recordKeyEvent(desc)
+                }
+            }
         }
         return super.dispatchKeyEvent(event)
     }
