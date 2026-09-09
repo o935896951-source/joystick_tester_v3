@@ -55,9 +55,9 @@ class RemapAccessibilityService : AccessibilityService() {
                     } ?: continue
                     Log.i(
                         TAG,
-                        "  axis=${axisLabel(axis)} min=${range.min} max=${range.max} " +
-                            "flat=${range.flat} " +
-                            "source=${Integer.toHexString(range.source)}",
+                        "  axis=${axisLabel(axis)} min=${range.getMin()} max=${range.getMax()} " +
+                            "flat=${range.getFlat()} " +
+                            "source=${Integer.toHexString(range.getSource())}",
                     )
                 }
             }
