@@ -9,11 +9,18 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.InputDevice
 import android.view.accessibility.AccessibilityEvent
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Stage 1：搖桿映射器骨架。
  * 僅全域攔截搖桿 KeyEvent 並記錄，尚不進行任何觸控注入。
  * onKeyEvent 一律回傳 false（放行），確保不影響任何現有行為。
+ *
+ * 【Stage 1 診斷階段】onKeyEvent 維持「只 Log + return false」完全不變。
+ * 此檔案額外提供 thread-safe 的 raw 診斷歷史 recorder，
+ * 供 MainActivity 把每個 KeyEvent（PASS / DROP / 非 gamepad）寫入。
  */
 class RemapAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
@@ -75,27 +82,30 @@ class RemapAccessibilityService : AccessibilityService() {
         @Volatile
         var filterKeyEventsAvailable: Boolean = false
 
-        /** 最近一筆符合白名單的 KeyEvent 描述（供診斷 UI 顯示，不影響行為）。 */
+        /** 最近一筆 raw 診斷紀錄描述（供診斷 UI 顯示，不影響行為）。 */
         @Volatile
-        var lastWhitelistedEvent: String? = null
+        var lastRecordedEvent: String? = null
 
         private val historyLock = Any()
-        private val keyEventHistory = ArrayDeque<String>()
+        private val keyEventHistory = ArrayDeque<GamepadEventRecord>()
 
-        /** 記錄一筆符合白名單的 KeyEvent 描述到最近事件歷史。 */
-        fun recordKeyEvent(desc: String) {
+        /**
+         * 記錄一筆 raw 事件（PASS / DROP / NOT_EVALUATED 皆記錄），
+         * 維持最多 [MAX_HISTORY] 筆（最舊的先被移除）。
+         */
+        fun recordRawEvent(record: GamepadEventRecord) {
             synchronized(historyLock) {
-                keyEventHistory.addLast(desc)
+                keyEventHistory.addLast(record)
                 while (keyEventHistory.size > MAX_HISTORY) {
                     keyEventHistory.removeFirst()
                 }
             }
-            lastWhitelistedEvent = desc
+            lastRecordedEvent = record.toDisplayString()
         }
 
-        /** 回傳最近的事件歷史（新→舊依序的過往序列）。 */
+        /** 回傳最近的 raw 事件歷史（舊→新的原始順序）。 */
         fun getKeyEventHistory(): List<String> = synchronized(historyLock) {
-            keyEventHistory.toList()
+            keyEventHistory.map { it.toDisplayString() }
         }
 
         /** 是否已啟用此無障礙服務（唯讀檢查，供權限流程 UI 使用）。 */
@@ -109,6 +119,86 @@ class RemapAccessibilityService : AccessibilityService() {
             return enabled.split(':').any { it.equals(expected, ignoreCase = true) }
         }
     }
+}
+
+/**
+ * 一筆 raw 診斷事件紀錄。
+ *
+ * @param timestamp  "HH:mm:ss.SSS"
+ * @param origin     來源路徑：目前只有 "activity"（a11y 路徑尚未接入）
+ * @param keyCode    原始 keyCode（96 與 190 各自保留，不 merge）
+ * @param logicalKey 顯示用邏輯名稱（目前僅標準鍵有名字，alias 顯示 UNKNOWN(190)）
+ * @param action     DOWN / UP / MULTIPLE / UNKNOWN(...)
+ * @param deviceId   裝置 id
+ * @param repeatCount 長按重複次數
+ * @param source     InputDevice source（hex）
+ * @param downTime   KeyEvent.downTime
+ * @param eventTime  KeyEvent.eventTime
+ * @param gate       PASS / DROP_REPEAT / DROP_ALREADY_DOWN /
+ *                   DROP_NO_MATCHING_DOWN / DROP_IGNORED / NOT_EVALUATED
+ * @param emitted    是否已 emit 到 Flutter EventChannel
+ */
+data class GamepadEventRecord(
+    val timestamp: String,
+    val origin: String,
+    val keyCode: Int,
+    val logicalKey: String,
+    val action: String,
+    val deviceId: Int,
+    val repeatCount: Int,
+    val source: String,
+    val downTime: Long,
+    val eventTime: Long,
+    val gate: String,
+    val emitted: Boolean,
+) {
+    fun toDisplayString(): String = buildString {
+        appendLine(timestamp)
+        appendLine(origin)
+        appendLine("keyCode=$keyCode")
+        appendLine("logical=$logicalKey")
+        appendLine(action)
+        appendLine("deviceId=$deviceId")
+        appendLine("repeat=$repeatCount")
+        appendLine("source=$source")
+        appendLine("downTime=$downTime")
+        appendLine("eventTime=$eventTime")
+        append("gate=$gate")
+        append("\nemitted=$emitted")
+    }
+}
+
+/** 目前時間，格式 「HH:mm:ss.SSS」。 */
+fun nowTimestamp(): String = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
+
+/**
+ * 顯示用邏輯鍵名稱。
+ * 注意：此處【不】把 SR-001 的 alias（190/189/191/188）對映成 A/B/X/Y；
+ * 那段是為了「先確認 A 是否真的同時產生標準與 alias 兩種 keyCode」，
+ * 因此 alias 一律顯示 UNKNOWN(190)。
+ */
+fun logicalKeyLabel(keyCode: Int): String = when (keyCode) {
+    KeyEvent.KEYCODE_BUTTON_A -> "A"
+    KeyEvent.KEYCODE_BUTTON_B -> "B"
+    KeyEvent.KEYCODE_BUTTON_X -> "X"
+    KeyEvent.KEYCODE_BUTTON_Y -> "Y"
+    KeyEvent.KEYCODE_BUTTON_L1 -> "L1"
+    KeyEvent.KEYCODE_BUTTON_R1 -> "R1"
+    KeyEvent.KEYCODE_BUTTON_L2 -> "L2"
+    KeyEvent.KEYCODE_BUTTON_R2 -> "R2"
+    KeyEvent.KEYCODE_BUTTON_THUMBL -> "L3"
+    KeyEvent.KEYCODE_BUTTON_THUMBR -> "R3"
+    KeyEvent.KEYCODE_BUTTON_START -> "START"
+    KeyEvent.KEYCODE_BUTTON_SELECT -> "SELECT"
+    KeyEvent.KEYCODE_BUTTON_MODE -> "MODE"
+    KeyEvent.KEYCODE_DPAD_UP -> "DPAD_UP"
+    KeyEvent.KEYCODE_DPAD_DOWN -> "DPAD_DOWN"
+    KeyEvent.KEYCODE_DPAD_LEFT -> "DPAD_LEFT"
+    KeyEvent.KEYCODE_DPAD_RIGHT -> "DPAD_RIGHT"
+    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> "PLAY_PAUSE"
+    KeyEvent.KEYCODE_SPACE -> "SPACE"
+    KeyEvent.KEYCODE_DPAD_CENTER -> "ENTER"
+    else -> "UNKNOWN($keyCode)"
 }
 
 /** 判斷 KeyEvent 是否為遊戲搖桿按鍵（Stage 1 採用 keyCode 白名單）。 */

@@ -44,8 +44,15 @@ class MainActivity: FlutterActivity() {
             }
         }
     }
+
+    /**
+     * Stage 1 診斷：
+     * - 每個進入的 KeyEvent 都寫入 raw 診斷歷史（PASS / DROP_* / NOT_EVALUATED 皆記錄）。
+     * - 不改變既有輸出：只有「裝置是 gamepad 且 gate PASS」才 emit 到 Flutter。
+     * - 不 merge 96/190、不改 pressedKeyCodes、不接 a11y、不 injection、不改 mapping。
+     */
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
-        if(event!=null){
+        if (event != null) {
             val gpDevice = isGamepadEvent(event.deviceId)
             Log.i(
                 "GamepadEvtGate",
@@ -57,21 +64,48 @@ class MainActivity: FlutterActivity() {
                     "downTime=${event.downTime} " +
                     "isGamepadDevice=$gpDevice",
             )
-            if(gpDevice){
-                val canonical = GamepadEventGate.ingestKeyEvent(event)
-                if(canonical!=null){
-                    val map = mapOf("type" to "button","keyCode" to event.keyCode,"action" to canonical,"repeatCount" to event.repeatCount)
-                    try{ eventSink?.success(map) }catch(e:Exception){ Log.e("MainActivity","send error",e) }
-                    if(isGamepadEvent(event)){
-                        val desc = "keyCode=${event.keyCode} " +
-                            "action=${canonical.uppercase()} " +
-                            "deviceId=${event.deviceId} " +
-                            "repeatCount=${event.repeatCount}"
-                        Log.i("RemapA11y","canonical $desc")
-                        RemapAccessibilityService.recordKeyEvent(desc)
-                    }
+
+            var canonicalAction: String? = null
+            val gateLabel: String
+            if (gpDevice) {
+                val outcome = GamepadEventGate.ingestKeyEvent(event)
+                canonicalAction = outcome.canonicalAction
+                gateLabel = outcome.decision.label
+            } else {
+                gateLabel = "NOT_EVALUATED"
+            }
+
+            val emitted = gpDevice && canonicalAction != null
+            if (emitted) {
+                val map = mapOf(
+                    "type" to "button",
+                    "keyCode" to event.keyCode,
+                    "action" to canonicalAction,
+                    "repeatCount" to event.repeatCount,
+                )
+                try {
+                    eventSink?.success(map)
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "send error", e)
                 }
             }
+
+            RemapAccessibilityService.recordRawEvent(
+                GamepadEventRecord(
+                    timestamp = nowTimestamp(),
+                    origin = "activity",
+                    keyCode = event.keyCode,
+                    logicalKey = logicalKeyLabel(event.keyCode),
+                    action = actionLabel(event.action),
+                    deviceId = event.deviceId,
+                    repeatCount = event.repeatCount,
+                    source = Integer.toHexString(event.source),
+                    downTime = event.downTime,
+                    eventTime = event.eventTime,
+                    gate = gateLabel,
+                    emitted = emitted,
+                ),
+            )
         }
         return super.dispatchKeyEvent(event)
     }

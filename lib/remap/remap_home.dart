@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import 'remap_control.dart';
 
 class RemapHomePage extends StatefulWidget {
@@ -12,24 +15,47 @@ class _RemapHomePageState extends State<RemapHomePage> {
   RemapStatus? _status;
   List<String> _keyHistory = [];
   bool _loading = true;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _timer =
+        Timer.periodic(const Duration(milliseconds: 700), (_) => _silentRefresh());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
     setState(() => _loading = true);
+    await _loadData();
+    if (mounted) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _silentRefresh() async {
+    await _loadData();
+  }
+
+  Future<void> _loadData() async {
     final s = await RemapControl.getStatus();
     final history = await RemapControl.getKeyEventHistory();
     if (mounted) {
       setState(() {
         _status = s;
-        _keyHistory = history;
-        _loading = false;
+        _keyHistory = history.reversed.toList();
       });
     }
+  }
+
+  Future<void> _openSettings() async {
+    await RemapControl.openAccessibilitySettings();
   }
 
   @override
@@ -37,7 +63,7 @@ class _RemapHomePageState extends State<RemapHomePage> {
     final enabled = _status?.serviceEnabled ?? false;
     return Scaffold(
       appBar: AppBar(title: const Text('搖桿映射器')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -77,24 +103,24 @@ class _RemapHomePageState extends State<RemapHomePage> {
                         child: Text('（尚未收到）'),
                       )
                     else
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 220),
-                        child: ListView(
-                          shrinkWrap: true,
-                          reverse: true,
-                          children: [
-                            for (final e in _keyHistory)
-                              ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: Text(
-                                  (e.contains('action=DOWN') ? '↓' : '↑'),
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                                title: Text(e, style: const TextStyle(fontSize: 12)),
-                              ),
-                          ],
-                        ),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _keyHistory.length,
+                        itemBuilder: (context, idx) {
+                          final e = _keyHistory[idx];
+                          final down = e.split('\n').any((line) => line == 'DOWN');
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Text(
+                              down ? '↓' : '↑',
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            title: Text(e, style: const TextStyle(fontSize: 12)),
+                          );
+                        },
                       ),
                   ],
                 ),
@@ -133,9 +159,5 @@ class _RemapHomePageState extends State<RemapHomePage> {
         ),
       ),
     );
-  }
-
-  Future<void> _openSettings() async {
-    await RemapControl.openAccessibilitySettings();
   }
 }
