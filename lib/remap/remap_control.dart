@@ -43,4 +43,24 @@ class RemapControl {
       return const [];
     }
   }
+
+  static Future<bool> clearKeyEventHistory() async {
+    try {
+      return await _channel.invokeMethod('clearKeyEventHistory') == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<Map<String, int>> getKeyEventHistoryStats() async {
+    try {
+      final dynamic v = await _channel.invokeMethod('getKeyEventHistoryStats');
+      if (v is Map) {
+        return v.map((key, value) => MapEntry(key.toString(), (value as num).toInt()));
+      }
+      return const {};
+    } catch (_) {
+      return const {};
+    }
+  }
 }

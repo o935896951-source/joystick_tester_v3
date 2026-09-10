@@ -71,6 +71,28 @@ class RemapAccessibilityService : AccessibilityService() {
                     "repeatCount=${event.repeatCount}"
                 Log.i(TAG, "onKeyEvent $desc")
             }
+
+            // 診斷（純記錄、不改變任何行為）：
+            // 把 a11y 收到的每一個 KeyEvent 原樣記入共享 raw 歷史。
+            // - 不跑 Gate（避免動到 pressedKeyCodes 狀態機，影響 MainActivity 的去重/emit）
+            // - 不 emit、不 injection、不攔截、不轉發（仍一律 return false 放行）
+            // - 與 origin="activity" 各自獨立保留，供判斷事件到底有沒有走到 MainActivity。
+            recordRawEvent(
+                GamepadEventRecord(
+                    timestamp = nowTimestamp(),
+                    origin = "a11y",
+                    keyCode = event.keyCode,
+                    logicalKey = logicalKeyLabel(event.keyCode),
+                    action = actionLabel(event.action),
+                    deviceId = event.deviceId,
+                    repeatCount = event.repeatCount,
+                    source = event.source,
+                    downTime = event.downTime,
+                    eventTime = event.eventTime,
+                    gate = "A11Y_PASSTHRU",
+                    emitted = false,
+                ),
+            )
         }
         return false
     }
@@ -90,22 +112,73 @@ class RemapAccessibilityService : AccessibilityService() {
         private val keyEventHistory = ArrayDeque<GamepadEventRecord>()
 
         /**
-         * 記錄一筆 raw 事件（PASS / DROP / NOT_EVALUATED 皆記錄），
+         * 記錄一筆 raw 事件（PASS / DROP / NOT_EVALUATED / A11Y_PASSTHRU 皆記錄），
          * 維持最多 [MAX_HISTORY] 筆（最舊的先被移除）。
          */
         fun recordRawEvent(record: GamepadEventRecord) {
+            val count: Int
             synchronized(historyLock) {
                 keyEventHistory.addLast(record)
                 while (keyEventHistory.size > MAX_HISTORY) {
                     keyEventHistory.removeFirst()
                 }
+                count = keyEventHistory.size
             }
-            lastRecordedEvent = record.toDisplayString()
+            lastRecordedEvent = record.toCopyString()
+            Log.i(
+                TAG,
+                "[GP-DIAG-HISTORY] record origin=${record.origin} " +
+                    "keyCode=${record.keyCode} action=${record.action} " +
+                    "gate=${record.gate} emitted=${record.emitted} count=$count",
+            )
         }
 
-        /** 回傳最近的 raw 事件歷史（舊→新的原始順序）。 */
+        /** 回傳最近的 raw 事件歷史（舊→新的原始 arrival 順序，每筆為一行可複製格式）。 */
         fun getKeyEventHistory(): List<String> = synchronized(historyLock) {
-            keyEventHistory.map { it.toDisplayString() }
+            val list = keyEventHistory.map { it.toCopyString() }
+            Log.i(
+                TAG,
+                "[GP-DIAG-HISTORY] getHistory count=${list.size} " +
+                    "latest=${list.lastOrNull() ?: "none"}",
+            )
+            list
+        }
+
+        /** 清空診斷歷史（只清 deque，不影響任何按鍵設定 / SharedPreferences）。 */
+        fun clearKeyEventHistory() {
+            synchronized(historyLock) {
+                keyEventHistory.clear()
+            }
+            lastRecordedEvent = null
+            Log.i(TAG, "[GP-DIAG-HISTORY] cleared")
+        }
+
+        /** 診斷統計：RAW / PASS / DROP / UNKNOWN 與收件來源（activity / a11y）計數。 */
+        fun getKeyEventHistoryStats(): Map<String, Int> = synchronized(historyLock) {
+            var pass = 0
+            var drop = 0
+            var unknown = 0
+            var activity = 0
+            var a11y = 0
+            for (r in keyEventHistory) {
+                when {
+                    r.gate == "PASS" -> pass++
+                    r.gate.startsWith("DROP") -> drop++
+                }
+                if (r.logicalKey.startsWith("UNKNOWN")) unknown++
+                when (r.origin) {
+                    "activity" -> activity++
+                    "a11y" -> a11y++
+                }
+            }
+            mapOf(
+                "raw" to keyEventHistory.size,
+                "pass" to pass,
+                "drop" to drop,
+                "unknown" to unknown,
+                "activity" to activity,
+                "a11y" to a11y,
+            )
         }
 
         /** 是否已啟用此無障礙服務（唯讀檢查，供權限流程 UI 使用）。 */
@@ -124,18 +197,20 @@ class RemapAccessibilityService : AccessibilityService() {
 /**
  * 一筆 raw 診斷事件紀錄。
  *
- * @param timestamp  "HH:mm:ss.SSS"
- * @param origin     來源路徑：目前只有 "activity"（a11y 路徑尚未接入）
+ * @param timestamp  "yyyy-MM-dd HH:mm:ss.SSS"
+ * @param origin     來源路徑： "activity"（MainActivity.dispatchKeyEvent）/
+ *                   "a11y"（RemapAccessibilityService.onKeyEvent）
  * @param keyCode    原始 keyCode（96 與 190 各自保留，不 merge）
  * @param logicalKey 顯示用邏輯名稱（目前僅標準鍵有名字，alias 顯示 UNKNOWN(190)）
  * @param action     DOWN / UP / MULTIPLE / UNKNOWN(...)
  * @param deviceId   裝置 id
  * @param repeatCount 長按重複次數
- * @param source     InputDevice source（hex）
+ * @param source     InputDevice source 原始 int（顯示時輸出 hex(dec)）
  * @param downTime   KeyEvent.downTime
  * @param eventTime  KeyEvent.eventTime
  * @param gate       PASS / DROP_REPEAT / DROP_ALREADY_DOWN /
- *                   DROP_NO_MATCHING_DOWN / DROP_IGNORED / NOT_EVALUATED
+ *                   DROP_NO_MATCHING_DOWN / DROP_IGNORED / NOT_EVALUATED /
+ *                   A11Y_PASSTHRU（a11y 收件，未經 Gate 判定）
  * @param emitted    是否已 emit 到 Flutter EventChannel
  */
 data class GamepadEventRecord(
@@ -146,12 +221,16 @@ data class GamepadEventRecord(
     val action: String,
     val deviceId: Int,
     val repeatCount: Int,
-    val source: String,
+    val source: Int,
     val downTime: Long,
     val eventTime: Long,
     val gate: String,
     val emitted: Boolean,
 ) {
+    /** source 的十六進位（含十進位）顯示，例如 "0x401(1025)"。 */
+    fun sourceLabel(): String = "0x${Integer.toHexString(source)}($source)"
+
+    /** 多行顯示格式（LastRecordedEvent 等內部使用）。 */
     fun toDisplayString(): String = buildString {
         appendLine(timestamp)
         appendLine(origin)
@@ -160,16 +239,23 @@ data class GamepadEventRecord(
         appendLine(action)
         appendLine("deviceId=$deviceId")
         appendLine("repeat=$repeatCount")
-        appendLine("source=$source")
+        appendLine("source=${sourceLabel()}")
         appendLine("downTime=$downTime")
         appendLine("eventTime=$eventTime")
-        append("gate=$gate")
-        append("\nemitted=$emitted")
+        appendLine("gate=$gate")
+        append("emitted=$emitted")
     }
+
+    /** 一筆一行純文字，供「複製全部」/「單筆複製」/ MethodChannel 傳輸。 */
+    fun toCopyString(): String =
+        "$timestamp | origin=$origin | keyCode=$keyCode | logical=$logicalKey | " +
+            "action=$action | deviceId=$deviceId | repeat=$repeatCount | " +
+            "source=${sourceLabel()} | downTime=$downTime | eventTime=$eventTime | " +
+            "gate=$gate | emitted=$emitted"
 }
 
-/** 目前時間，格式 「HH:mm:ss.SSS」。 */
-fun nowTimestamp(): String = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
+/** 目前時間，格式 「yyyy-MM-dd HH:mm:ss.SSS」。 */
+fun nowTimestamp(): String = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
 
 /**
  * 顯示用邏輯鍵名稱。

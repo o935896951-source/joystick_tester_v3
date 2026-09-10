@@ -40,6 +40,13 @@ class MainActivity: FlutterActivity() {
                 "getKeyEventHistory" -> {
                     result.success(RemapAccessibilityService.getKeyEventHistory())
                 }
+                "clearKeyEventHistory" -> {
+                    RemapAccessibilityService.clearKeyEventHistory()
+                    result.success(true)
+                }
+                "getKeyEventHistoryStats" -> {
+                    result.success(RemapAccessibilityService.getKeyEventHistoryStats())
+                }
                 else -> result.notImplemented()
             }
         }
@@ -99,7 +106,7 @@ class MainActivity: FlutterActivity() {
                     action = actionLabel(event.action),
                     deviceId = event.deviceId,
                     repeatCount = event.repeatCount,
-                    source = Integer.toHexString(event.source),
+                    source = event.source,
                     downTime = event.downTime,
                     eventTime = event.eventTime,
                     gate = gateLabel,
