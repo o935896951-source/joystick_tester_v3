@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'remap_config_page.dart';
 import 'remap_control.dart';
 
 class RemapHomePage extends StatefulWidget {
@@ -150,11 +151,10 @@ class _RemapHomePageState extends State<RemapHomePage> {
                   size: 40,
                 ),
                 title: Text(enabled ? '無障礙服務已啟用' : '無障礙服務未啟用'),
-                subtitle: Text(_status == null
-                    ? '無法讀取狀態'
-                    : (_status!.filterKeyEventsAvailable
-                        ? '裝置支援按鍵全域攔截 (Android 8+)'
-                        : '裝置不支援按鍵全域攔截')),
+                subtitle: Text(
+                  '${_status == null ? '無法讀取狀態' : (_status!.filterKeyEventsAvailable ? '支援按鍵全域攔截 (Android 8+)' : '不支援按鍵全域攔截')}\n'
+                  '${(_status?.gesturesSupported ?? false) ? '支援手勢注入 (dispatchGesture)' : '不支援手勢注入'}',
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -247,6 +247,17 @@ class _RemapHomePageState extends State<RemapHomePage> {
                   onPressed: _loading ? null : _refresh,
                   icon: const Icon(Icons.refresh),
                   label: const Text('重新整理 / 診斷'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RemapConfigPage()),
+                    );
+                    await _loadData();
+                  },
+                  icon: const Icon(Icons.touch_app),
+                  label: const Text('虛擬按鈕設定'),
                 ),
               ],
             ),

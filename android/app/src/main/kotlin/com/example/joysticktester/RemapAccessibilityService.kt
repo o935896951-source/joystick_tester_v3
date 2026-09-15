@@ -21,19 +21,32 @@ import java.util.Locale
  * 【Stage 1 診斷階段】onKeyEvent 維持「只 Log + return false」完全不變。
  * 此檔案額外提供 thread-safe 的 raw 診斷歷史 recorder，
  * 供 MainActivity 把每個 KeyEvent（PASS / DROP / 非 gamepad）寫入。
+ *
+ * 【Stage 1.5 A/B/X/Y → 虛擬觸控 MVP】
+ * - onKeyEvent 對「有設定綁定的實體按鍵」改用 RemapTouchController 處理並 return true 吞掉。
+ * - 未綁定 / 非 gamepad 按鍵仍 return false（完全放行）。
+ * - 診斷 record、log、gate（MainActivity 側）皆不變。
  */
 class RemapAccessibilityService : AccessibilityService() {
+    private val touchController: RemapTouchController by lazy { RemapTouchController(this) }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         val flags = serviceInfo?.flags ?: 0
         val canFilterKeys =
             (flags and AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS) != 0
+        val caps = serviceInfo?.capabilities ?: 0
+        val canGestures =
+            (caps and AccessibilityServiceInfo.CAPABILITY_CAN_PERFORM_GESTURES) != 0
         Log.i(
             TAG,
             "onServiceConnected filterKeyEvents=$canFilterKeys " +
-                "flags=${Integer.toHexString(flags)}",
+                "canPerformGestures=$canGestures " +
+                "flags=${Integer.toHexString(flags)} " +
+                "caps=${Integer.toHexString(caps)}",
         )
         filterKeyEventsAvailable = canFilterKeys
+        gesturesSupported = canGestures
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -93,6 +106,11 @@ class RemapAccessibilityService : AccessibilityService() {
                     emitted = false,
                 ),
             )
+
+            // Stage 1.5：有綁定的實體按鍵 → 虛擬觸控（dispatchGesture）並吞掉。
+            if (touchController.onKeyEvent(event)) {
+                return true
+            }
         }
         return false
     }
@@ -103,6 +121,10 @@ class RemapAccessibilityService : AccessibilityService() {
 
         @Volatile
         var filterKeyEventsAvailable: Boolean = false
+
+        /** 是否支援 dispatchGesture（android:canPerformGestures）。 */
+        @Volatile
+        var gesturesSupported: Boolean = false
 
         /** 最近一筆 raw 診斷紀錄描述（供診斷 UI 顯示，不影響行為）。 */
         @Volatile

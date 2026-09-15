@@ -27,6 +27,7 @@ class MainActivity: FlutterActivity() {
                     result.success(mapOf(
                         "serviceEnabled" to RemapAccessibilityService.isServiceEnabled(this),
                         "filterKeyEventsAvailable" to RemapAccessibilityService.filterKeyEventsAvailable,
+                        "gesturesSupported" to RemapAccessibilityService.gesturesSupported,
                     ))
                 }
                 "openAccessibilitySettings" -> {
@@ -46,6 +47,18 @@ class MainActivity: FlutterActivity() {
                 }
                 "getKeyEventHistoryStats" -> {
                     result.success(RemapAccessibilityService.getKeyEventHistoryStats())
+                }
+                "getRemapConfig" -> {
+                    result.success(RemapConfigStore.toJsonString(this))
+                }
+                "saveRemapConfig" -> {
+                    val raw = call.argument<String>("config")
+                    if (raw == null) {
+                        result.success(false)
+                    } else {
+                        RemapConfigStore.saveJson(this, raw)
+                        result.success(true)
+                    }
                 }
                 else -> result.notImplemented()
             }

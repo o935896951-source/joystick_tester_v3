@@ -1,14 +1,22 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 
 class RemapStatus {
-  const RemapStatus({required this.serviceEnabled, required this.filterKeyEventsAvailable});
+  const RemapStatus({
+    required this.serviceEnabled,
+    required this.filterKeyEventsAvailable,
+    required this.gesturesSupported,
+  });
 
   final bool serviceEnabled;
   final bool filterKeyEventsAvailable;
+  final bool gesturesSupported;
 
   factory RemapStatus.fromMap(Map<dynamic, dynamic> m) => RemapStatus(
         serviceEnabled: m['serviceEnabled'] == true,
         filterKeyEventsAvailable: m['filterKeyEventsAvailable'] == true,
+        gesturesSupported: m['gesturesSupported'] == true,
       );
 }
 
@@ -61,6 +69,30 @@ class RemapControl {
       return const {};
     } catch (_) {
       return const {};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getRemapConfig() async {
+    try {
+      final dynamic v = await _channel.invokeMethod('getRemapConfig');
+      if (v is String) {
+        final dynamic d = jsonDecode(v);
+        if (d is Map<String, dynamic>) return d;
+      }
+      return const {};
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  static Future<bool> saveRemapConfig(Map<String, dynamic> config) async {
+    try {
+      final bool ok = await _channel
+              .invokeMethod('saveRemapConfig', {'config': jsonEncode(config)}) ==
+          true;
+      return ok;
+    } catch (_) {
+      return false;
     }
   }
 }
