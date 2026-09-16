@@ -299,6 +299,10 @@ fun logicalKeyLabel(keyCode: Int): String = when (keyCode) {
     KeyEvent.KEYCODE_BUTTON_START -> "START"
     KeyEvent.KEYCODE_BUTTON_SELECT -> "SELECT"
     KeyEvent.KEYCODE_BUTTON_MODE -> "MODE"
+    192 -> "L1" // SR-001 alias
+    193 -> "R1" // SR-001 alias
+    194 -> "L2" // SR-001 alias
+    195 -> "R2" // SR-001 alias
     KeyEvent.KEYCODE_DPAD_UP -> "DPAD_UP"
     KeyEvent.KEYCODE_DPAD_DOWN -> "DPAD_DOWN"
     KeyEvent.KEYCODE_DPAD_LEFT -> "DPAD_LEFT"

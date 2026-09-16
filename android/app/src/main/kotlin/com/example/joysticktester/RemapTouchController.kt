@@ -66,6 +66,11 @@ class RemapTouchController(private val service: AccessibilityService) {
                     commit()
                     Log.i(TAG, "TOUCH UP keyCode=$code consumed")
                     true
+                } else if (map.containsKey(code)) {
+                    // Ghost UP：已綁定（visible、config 內）但 pressed 無此 keyCode 的多餘 UP，
+                    // 由 remapper 吞掉，避免放行給前景 App 產生「沒有 DOWN 的 UP」。
+                    Log.i(TAG, "GHOST UP keyCode=$code bound, consumed")
+                    true
                 } else {
                     false
                 }

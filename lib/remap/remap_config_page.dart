@@ -16,6 +16,10 @@ const _keyLabels = <int, String>{
   189: 'B (SR-001) 189',
   190: 'A (SR-001) 190',
   191: 'X (SR-001) 191',
+  192: 'L1 (SR-001) 192',
+  193: 'R1 (SR-001) 193',
+  194: 'L2 (SR-001) 194',
+  195: 'R2 (SR-001) 195',
   96: 'BUTTON_A 96',
   97: 'BUTTON_B 97',
   99: 'BUTTON_X 99',
@@ -31,6 +35,10 @@ Map<String, dynamic> _defaultButtons() => {
       'B': {'physicalKeyCode': 189, 'xRatio': 0.95, 'yRatio': 0.42, 'sizeRatio': 0.11, 'visible': true, 'opacity': 0.6},
       'X': {'physicalKeyCode': 191, 'xRatio': 0.77, 'yRatio': 0.42, 'sizeRatio': 0.11, 'visible': true, 'opacity': 0.6},
       'Y': {'physicalKeyCode': 188, 'xRatio': 0.86, 'yRatio': 0.24, 'sizeRatio': 0.11, 'visible': true, 'opacity': 0.6},
+      'L1': {'physicalKeyCode': 192, 'xRatio': 0.18, 'yRatio': 0.16, 'sizeRatio': 0.10, 'visible': true, 'opacity': 0.6},
+      'R1': {'physicalKeyCode': 193, 'xRatio': 0.82, 'yRatio': 0.16, 'sizeRatio': 0.10, 'visible': true, 'opacity': 0.6},
+      'L2': {'physicalKeyCode': 194, 'xRatio': 0.18, 'yRatio': 0.28, 'sizeRatio': 0.10, 'visible': true, 'opacity': 0.6},
+      'R2': {'physicalKeyCode': 195, 'xRatio': 0.82, 'yRatio': 0.28, 'sizeRatio': 0.10, 'visible': true, 'opacity': 0.6},
     };
 
 class _RemapConfigPageState extends State<RemapConfigPage> {

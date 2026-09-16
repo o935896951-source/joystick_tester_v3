@@ -26,7 +26,8 @@ object RemapConfigStore {
         var opacity: Double,
     )
 
-    fun defaultButtonIds(): List<String> = listOf("A", "B", "X", "Y")
+    fun defaultButtonIds(): List<String> =
+        listOf("A", "B", "X", "Y", "L1", "R1", "L2", "R2")
 
     /** 回傳目前儲存的 JSON；從未儲存時回傳預設。 */
     fun toJsonString(context: Context): String {
@@ -62,17 +63,23 @@ object RemapConfigStore {
         } ?: return LinkedHashMap()
         val out = LinkedHashMap<String, VirtualButton>()
         for (id in defaultButtonIds()) {
-            val j = obj.optJSONObject(id) ?: continue
             val d = defaults(id)
-            out[id] = VirtualButton(
-                id = id,
-                physicalKeyCode = j.optInt("physicalKeyCode", d.physicalKeyCode),
-                xRatio = j.optDouble("xRatio", d.xRatio),
-                yRatio = j.optDouble("yRatio", d.yRatio),
-                sizeRatio = j.optDouble("sizeRatio", d.sizeRatio),
-                visible = j.optBoolean("visible", d.visible),
-                opacity = j.optDouble("opacity", d.opacity),
-            )
+            val j = obj.optJSONObject(id)
+            out[id] = if (j == null) {
+                // 舊版 config 沒有此 id（如升級後才新增的 L1/R1/L2/R2）：補預設值，
+                // 不需使用者先按儲存。
+                d
+            } else {
+                VirtualButton(
+                    id = id,
+                    physicalKeyCode = j.optInt("physicalKeyCode", d.physicalKeyCode),
+                    xRatio = j.optDouble("xRatio", d.xRatio),
+                    yRatio = j.optDouble("yRatio", d.yRatio),
+                    sizeRatio = j.optDouble("sizeRatio", d.sizeRatio),
+                    visible = j.optBoolean("visible", d.visible),
+                    opacity = j.optDouble("opacity", d.opacity),
+                )
+            }
         }
         return out
     }
@@ -117,6 +124,10 @@ object RemapConfigStore {
         "B" -> VirtualButton("B", 189, 0.95, 0.42, 0.11, true, 0.6)
         "X" -> VirtualButton("X", 191, 0.77, 0.42, 0.11, true, 0.6)
         "Y" -> VirtualButton("Y", 188, 0.86, 0.24, 0.11, true, 0.6)
+        "L1" -> VirtualButton("L1", 192, 0.18, 0.16, 0.10, true, 0.6)
+        "R1" -> VirtualButton("R1", 193, 0.82, 0.16, 0.10, true, 0.6)
+        "L2" -> VirtualButton("L2", 194, 0.18, 0.28, 0.10, true, 0.6)
+        "R2" -> VirtualButton("R2", 195, 0.82, 0.28, 0.10, true, 0.6)
         else -> VirtualButton(id, 0, 0.5, 0.5, 0.1, true, 0.6)
     }
 }
